@@ -149,7 +149,7 @@ function App() {
       <h1 className="large" style={{ fontSize: `${fontSize}px` }}>
         {formatTime(synchronizedTime)}
       </h1>
-      {fetchedRef.current && (
+      {fetchedRef.current === true ? (
         <p className="stats">
           Your clock is {serverTimeOffset > 0 ? "behind" : "ahead"}. The
           difference from <a href="https://worldtimeapi.org/">WorldTimeAPI</a>{" "}
@@ -157,6 +157,8 @@ function App() {
           {Math.round(serverTimeOffset) / 1000} seconds (±{" "}
           {Math.round(serverTimeOffsetRange / 2) / 1000} seconds).
         </p>
+      ) : (
+        <p>Clock is not synchronized. Please wait...</p>
       )}
       <footer>
         <a href="https://github.com/andygock/realclock">GitHub</a>
