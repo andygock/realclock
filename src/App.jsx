@@ -35,7 +35,7 @@ async function calculateServerTimeOffsetStats(serverUrl) {
     await new Promise((resolve) => setTimeout(resolve, delayPerRequest));
   }
 
-  console.log("raw time offsets", serverTimeOffsets);
+  // console.log("raw time offsets", serverTimeOffsets);
 
   // optional: remove lowest and highest values
   // serverTimeOffsets.sort((a, b) => a - b);
@@ -125,9 +125,30 @@ function App() {
     calculateOffset();
   }, []);
 
+  // set the font size based on the window size
+  const [fontSize, setFontSize] = useState(30);
+  useEffect(() => {
+    const handleResize = () => {
+      const width = window.innerWidth;
+      const height = window.innerHeight;
+      const newFontSize = Math.min(width * 0.2, height * 0.5);
+      setFontSize(newFontSize);
+    };
+
+    handleResize();
+
+    window.addEventListener("resize", handleResize);
+
+    return () => {
+      window.removeEventListener("resize", handleResize);
+    };
+  }, []);
+
   return (
     <div>
-      <h1 className="large">{formatTime(synchronizedTime)}</h1>
+      <h1 className="large" style={{ fontSize: `${fontSize}px` }}>
+        {formatTime(synchronizedTime)}
+      </h1>
       {fetchedRef.current && (
         <p className="stats">
           Your clock is {serverTimeOffset > 0 ? "behind" : "ahead"}. The
@@ -137,6 +158,9 @@ function App() {
           {Math.round(serverTimeOffsetRange / 2) / 1000} seconds).
         </p>
       )}
+      <footer>
+        <a href="https://github.com/andygock/realclock">GitHub</a>
+      </footer>
     </div>
   );
 }
