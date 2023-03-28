@@ -97,6 +97,10 @@ function App() {
   // Calculate the milliseconds remaining until the next second boundary
   const remainingMilliseconds = 1000 - synchronizedTime.getMilliseconds();
 
+  // calculate whether the second portion of synchronizedTime is a multiple of 5
+  // used to change font color, to help set watches
+  const isMultipleOfFive = synchronizedTime.getSeconds() % 5 === 0;
+
   // set the clock display, with a delay to compensate for the time offset
   setTimeout(() => {
     const now = new Date();
@@ -146,7 +150,13 @@ function App() {
 
   return (
     <div>
-      <h1 className="large" style={{ fontSize: `${fontSize}px` }}>
+      <h1
+        className="large"
+        style={{
+          fontSize: `${fontSize}px`,
+          color: `${isMultipleOfFive ? "black" : ""}`,
+        }}
+      >
         {formatTime(synchronizedTime)}
       </h1>
       {fetchedRef.current === true ? (
