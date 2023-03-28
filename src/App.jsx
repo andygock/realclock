@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import cx from "./classix";
 import "./App.css";
 
 // calculate the offset of API server time compared with local time, in milliseconds
@@ -148,27 +149,44 @@ function App() {
     };
   }, []);
 
+  // function to return a string saying how behind or ahead the clock, use descriptive text for the time offset
+  // e.g "slightly behind"
+  // under 0.100 seconds, "exact"
+  // 0.1 to 0.5 seconds, "slightly ahead/behind"
+  // over 0.5 seconds, "ahead/behind"
+  const getTimeOffsetDescription = (offset) => {
+    const error = Math.abs(offset) / 1000;
+    if (error === 0) return "exact";
+
+    const pre = () => {
+      if (error >= 0 && error < 0.1) return "exact";
+      if (error >= 0.1 && error < 0.5) return "slightly";
+      if (error > 0.5) return "";
+    };
+
+    return `${pre()}${offset <= 0 ? " ahead" : " behind"}`;
+  };
+
   return (
     <div>
       <h1
-        className="large"
+        className={cx("large", isMultipleOfFive && "highlight")}
         style={{
           fontSize: `${fontSize}px`,
-          color: `${isMultipleOfFive ? "black" : ""}`,
         }}
       >
         {formatTime(synchronizedTime)}
       </h1>
-      {fetchedRef.current === true ? (
+      {fetchedRef.current === true && serverTimeOffset !== 0 ? (
         <p className="stats">
-          Your clock is {serverTimeOffset > 0 ? "behind" : "ahead"}. The
+          Your clock is {getTimeOffsetDescription(serverTimeOffset)}. The
           difference from <a href="https://worldtimeapi.org/">WorldTimeAPI</a>{" "}
           is {serverTimeOffset > 0 ? "-" : "+"}
           {Math.round(serverTimeOffset) / 1000} seconds (±{" "}
           {Math.round(serverTimeOffsetRange / 2) / 1000} seconds).
         </p>
       ) : (
-        <p>Clock is not synchronized. Please wait...</p>
+        <p className="stats">Clock is not synchronized. Please wait...</p>
       )}
       <footer>
         <a href="https://github.com/andygock/realclock">GitHub</a>
