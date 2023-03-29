@@ -1,32 +1,31 @@
 (() => {
+  const serverUrl = "https://worldtimeapi.org/api/ip";
+
   // calculate the offset of API server time compared with local time, in milliseconds
   // compensates for network latency, assume equal round trip time in each direction
   // +ve offset means local clock is running behind server clock
-  const getServerTimeOffset = async (serverUrl) => {
-    try {
-      const clientTimeStart = Date.now();
-      const response = await fetch(serverUrl, { cache: "no-store" });
-      const json = await response.json();
-      const serverTime = new Date(json.datetime);
-      const clientTimeEnd = Date.now();
-      const roundTripTime = clientTimeEnd - clientTimeStart;
-      const timeOffset =
-        serverTime.getTime() - (clientTimeStart + roundTripTime / 2);
-      return timeOffset;
-    } catch (error) {
-      console.error(error);
-      throw error;
-    }
+  const getServerTimeOffset = async () => {
+    const clientTimeStart = Date.now();
+    const response = await fetch(serverUrl, {
+      cache: "no-store",
+    });
+    const json = await response.json();
+    const serverTime = new Date(json.datetime);
+    const clientTimeEnd = Date.now();
+    const roundTripTime = clientTimeEnd - clientTimeStart;
+    const timeOffset =
+      serverTime.getTime() - (clientTimeStart + roundTripTime / 2);
+    return timeOffset;
   };
 
   // calculate the time offset of server, 5 times, then get an average
-  const getServerTimeOffsetAverage = async (serverUrl) => {
+  const getServerTimeOffsetAverage = async () => {
     const serverTimeOffsets = [];
     const numberOfRequests = 5;
     const delayPerRequest = 100;
 
     for (let i = 0; i < numberOfRequests; i++) {
-      const offset = await getServerTimeOffset(serverUrl);
+      const offset = await getServerTimeOffset();
       serverTimeOffsets.push(offset);
 
       // delay for (100ms) before the next request
@@ -105,68 +104,70 @@
   };
 
   const main = async () => {
-    const serverUrl = "https://worldtimeapi.org/api/ip";
+    try {
+      let currentTime = new Date();
+      let synchronizedTime = currentTime;
+      let remainingMilliseconds = 0;
+      let serverTimeOffset = 0;
+      let serverTimeOffsetRange = 0;
 
-    let currentTime = new Date();
-    let synchronizedTime = currentTime;
-    let remainingMilliseconds = 0;
-    let serverTimeOffset = 0;
-    let serverTimeOffsetRange = 0;
+      // set font size on page load
+      resizeFont();
 
-    // set font size on page load
-    resizeFont();
+      // set font size on resizing of window
+      window.addEventListener("resize", resizeFont);
 
-    // set font size on resizing of window
-    window.addEventListener("resize", resizeFont);
+      // initial update of clcok is not synchronized
+      updateClock(synchronizedTime, { highlight: false, dim: true });
+      document.getElementById("stats").innerHTML = "<p>Synchronizing...</p>";
 
-    // initial update of clcok is not synchronized
-    const clock = document.getElementById("clock");
-    updateClock(synchronizedTime, { highlight: false, dim: true });
-    document.getElementById("stats").innerHTML = "<p>Synchronizing...</p>";
+      // calculate how far out local clock is by fetching real time from a server
+      // this will make 5 requests and return the average and min/max range
+      const { average: offset, range } = await getServerTimeOffsetAverage();
 
-    // calculate how far out local clock is by fetching real time from a server
-    // this will make 5 requests and return the average and min/max range
-    const { average: offset, range } = await getServerTimeOffsetAverage(
-      serverUrl
-    );
+      serverTimeOffset = offset;
+      serverTimeOffsetRange = range;
 
-    serverTimeOffset = offset;
-    serverTimeOffsetRange = range;
+      // update these stats on page
+      const statsHTML = `<p>Your clock is ${getTimeOffsetDescription(
+        serverTimeOffset
+      )}. The difference from <a href="https://worldtimeapi.org/">WorldTimeAPI</a> is ${
+        serverTimeOffset > 0 ? "-" : "+"
+      }${(serverTimeOffset / 1000).toFixed(3)} seconds (±${(
+        serverTimeOffsetRange / 2000
+      ).toFixed(3)} seconds)</p>`;
+      document.getElementById("stats").innerHTML = statsHTML;
 
-    // update these stats on page
-    const statsHTML = `<p>Your clock is ${getTimeOffsetDescription(
-      serverTimeOffset
-    )}. The difference from <a href="https://worldtimeapi.org/">WorldTimeAPI</a> is ${
-      serverTimeOffset > 0 ? "-" : "+"
-    }${(serverTimeOffset / 1000).toFixed(3)} seconds (±${(
-      serverTimeOffsetRange / 2000
-    ).toFixed(3)} seconds)</p>`;
-    document.getElementById("stats").innerHTML = statsHTML;
+      // update the clock every second
+      setInterval(() => {
+        const now = new Date();
+        currentTime = now;
 
-    // update the clock every second
-    setInterval(() => {
-      const now = new Date();
-      currentTime = now;
+        // Calculate the synchronized time by adding the time offset to the current time
+        // the +1000ms is because this fn is always run 1s behind
+        // IMPORTANT: this is the time displayed on the clock
+        synchronizedTime = new Date(
+          currentTime.getTime() + serverTimeOffset + 1000
+        );
 
-      // Calculate the synchronized time by adding the time offset to the current time
-      // the +1000ms is because this fn is always run 1s behind
-      // IMPORTANT: this is the time displayed on the clock
-      synchronizedTime = new Date(
-        currentTime.getTime() + serverTimeOffset + 1000
-      );
+        // Calculate the milliseconds remaining until the next second boundary
+        remainingMilliseconds = 1000 - synchronizedTime.getMilliseconds();
 
-      // Calculate the milliseconds remaining until the next second boundary
-      remainingMilliseconds = 1000 - synchronizedTime.getMilliseconds();
+        // calculate whether the second portion of synchronizedTime is a multiple of 5
+        // used to change font color, to help set watches
+        let highlight = synchronizedTime.getSeconds() % 5 === 0;
 
-      // calculate whether the second portion of synchronizedTime is a multiple of 5
-      // used to change font color, to help set watches
-      let highlight = synchronizedTime.getSeconds() % 5 === 0;
+        // update the DOM every second, but delay until the next second boundary
+        setTimeout(() => {
+          updateClock(synchronizedTime, { highlight, dim: false });
+        }, remainingMilliseconds);
+      }, 1000);
+    } catch (error) {
+      console.error(error);
 
-      // update the DOM every second, but delay until the next second boundary
-      setTimeout(() => {
-        updateClock(synchronizedTime, { highlight, dim: false });
-      }, remainingMilliseconds);
-    }, 1000);
+      // display error to user
+      document.getElementById("stats").innerHTML = `<p>Error: ${error}</p>`;
+    }
   }; // main
 
   main();
