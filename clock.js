@@ -58,6 +58,34 @@
     return `${hours}:${minutes}:${seconds}`;
   };
 
+  const getDaySuffix = (day) => {
+    if (day > 3 && day < 21) return "th";
+    switch (day % 10) {
+      case 1:
+        return "st";
+      case 2:
+        return "nd";
+      case 3:
+        return "rd";
+      default:
+        return "th";
+    }
+  };
+
+  // format the date
+  const formatDate = (date) => {
+    const day = date.getDate();
+    const month = date.getMonth() + 1;
+    const year = date.getFullYear();
+
+    // format e.g Monday 1st January 2021
+    return `${date.toLocaleDateString("en-GB", {
+      weekday: "long",
+    })}, ${day} ${date.toLocaleDateString("en-GB", {
+      month: "long",
+    })} ${year}`;
+  };
+
   // function to return a string saying how behind or ahead the clock, use descriptive text for the time offset
   // e.g "slightly behind"
   // under 0.100 seconds, "exact"
@@ -79,14 +107,25 @@
     const width = window.innerWidth;
     const height = window.innerHeight;
     const newFontSize = Math.min(width * 0.2, height * 0.5);
+
+    // set font size of clock
     document.getElementById("clock").style.fontSize = `${newFontSize}px`;
+
+    // set font size of date to be 15% of clock font size
+    document.getElementById("date").style.fontSize = `${newFontSize * 0.15}px`;
   };
 
   // update clock in DOM
   const updateClock = (time, opts) => {
     const { highlight, dim } = opts;
+
+    // update the time in the DOM
     const clock = document.getElementById("clock");
     clock.innerHTML = formatTime(time);
+
+    // update the date in the DOM
+    const date = document.getElementById("date");
+    date.innerHTML = formatDate(time);
 
     // highlight the text if the seconds are a multiple of 5
     if (highlight) {
@@ -95,11 +134,13 @@
       clock.classList.remove("highlight");
     }
 
-    // dim clock text when not synchronized
+    // dim clock and date text when not synchronized
     if (dim) {
       clock.classList.add("dim");
+      date.classList.add("dim");
     } else {
       clock.classList.remove("dim");
+      date.classList.remove("dim");
     }
   };
 
@@ -128,15 +169,17 @@
       serverTimeOffset = offset;
       serverTimeOffsetRange = range;
 
-      // update these stats on page
-      const statsHTML = `<p>Your clock is ${getTimeOffsetDescription(
-        serverTimeOffset
-      )}. The difference from <a href="https://worldtimeapi.org/">WorldTimeAPI</a> is ${
-        serverTimeOffset > 0 ? "-" : "+"
-      }${(serverTimeOffset / 1000).toFixed(3)} seconds (±${(
-        serverTimeOffsetRange / 2000
-      ).toFixed(3)} seconds)</p>`;
-      document.getElementById("stats").innerHTML = statsHTML;
+      // update these stats on page, delay by 1.5s to allow the clock to update first
+      setTimeout(() => {
+        const statsHTML = `<p>Your clock is ${getTimeOffsetDescription(
+          serverTimeOffset
+        )}. The difference from <a href="https://worldtimeapi.org/">WorldTimeAPI</a> is ${
+          serverTimeOffset > 0 ? "-" : "+"
+        }${(serverTimeOffset / 1000).toFixed(3)} seconds (±${(
+          serverTimeOffsetRange / 2000
+        ).toFixed(3)} seconds)</p>`;
+        document.getElementById("stats").innerHTML = statsHTML;
+      }, 1500);
 
       // update the clock every second
       setInterval(() => {

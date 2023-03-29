@@ -26,12 +26,18 @@ body {
 }
 
 .large {
-  font-family: Arial, Helvetica, sans-serif;
   text-align: center;
   font-weight: 900;
 }
 
+.date {
+  text-align: center;
+  font-weight: 700;
+  padding: 1rem;
+}
+
 .stats {
+  margin-top: 1rem;
   text-align: center;
   font-size: small;
 }
