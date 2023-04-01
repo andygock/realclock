@@ -7,3 +7,7 @@ A minimalistic accurate clock written in vanilla JS. Shows the exact real time e
 ## Demo
 
 <https://realclock.surge.sh/>
+
+## Alternative API server
+
+If you did not want to use WorldTimeAPI, an Express server is provided in the `reference/` dir.
