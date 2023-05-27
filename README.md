@@ -10,4 +10,4 @@ A minimalistic accurate clock written in vanilla JS. Shows the exact real time e
 
 ## Alternative API server
 
-If you did not want to use WorldTimeAPI, an Express server is provided in the `reference/` dir.
+If you did not want to use [WorldTimeAPI](https://worldtimeapi.org/), an Express server is provided in the `time-server/` dir.
