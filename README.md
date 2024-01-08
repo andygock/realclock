@@ -4,6 +4,8 @@ A minimalistic accurate clock written in vanilla JS. Shows the exact real time e
 
 ![screenshot](screenshot.png)
 
+The color changes at each multiple of 5 seconds to assist in synchronizing a physical watch or clock.
+
 ## Demo
 
 <https://realclock.surge.sh/>
