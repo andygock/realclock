@@ -8,7 +8,12 @@ The color changes at each multiple of 5 seconds to assist in synchronizing a phy
 
 ## Demo
 
-<https://realclock.surge.sh/>
+HTML + CSS + Vanilla JS, as is:
+<https://andygock.github.io/realclock/>
+
+Vite build: <https://realclock.surge.sh/>
+
+The Vite build may be more compatible with really old browsers, but the [GitHub Pages](https://andygock.github.io/realclock/) hosted version should work with all modern browsers.
 
 ## Alternative API server
 
