@@ -8,7 +8,9 @@ The color changes at each multiple of 5 seconds to assist in synchronizing a phy
 
 ## Demo
 
-HTML + CSS + Vanilla JS, as is <https://time.gock.net/>
+HTML + CSS + Vanilla JS, hosted on GitHub Pages:
+
+<https://time.gock.net/>
 
 ## Alternative API server
 
