@@ -1,5 +1,5 @@
 (() => {
-  const serverUrl = "https://worldtimeapi.org/api/ip";
+  const serverUrl = "https://timeapi.io/api/time/current/zone?timeZone=UTC";
 
   // calculate the offset of API server time compared with local time, in milliseconds
   // compensates for network latency, assume equal round trip time in each direction
@@ -9,12 +9,23 @@
     const response = await fetch(serverUrl, {
       cache: "no-store",
     });
+
+    // expect json response in this format, in UTC
+    // {"year":2025,"month":5,"day":20,"hour":17,"minute":17,"seconds":50,"milliSeconds":283,"dateTime":"2025-05-20T17:17:50.2835496","date":"05/20/2025","time":"17:17","timeZone":"UTC","dayOfWeek":"Tuesday","dstActive":false}
     const json = await response.json();
-    const serverTime = new Date(json.datetime);
     const clientTimeEnd = Date.now();
     const roundTripTime = clientTimeEnd - clientTimeStart;
-    const timeOffset =
-      serverTime.getTime() - (clientTimeStart + roundTripTime / 2);
+    // Use UTC times for both server and client to avoid local timezone issues
+    const serverUtc = Date.UTC(
+      json.year,
+      json.month - 1,
+      json.day,
+      json.hour,
+      json.minute,
+      json.seconds,
+      json.milliSeconds
+    );
+    const timeOffset = serverUtc - (clientTimeStart + roundTripTime / 2);
     return timeOffset;
   };
 
@@ -173,7 +184,7 @@
       setTimeout(() => {
         const statsHTML = `<p>Your clock is ${getTimeOffsetDescription(
           serverTimeOffset
-        )}. The difference from <a href="https://worldtimeapi.org/">WorldTimeAPI</a> is ${
+        )}. The difference from <a href="https://timeapi.io/">timeapi.io</a> is ${
           serverTimeOffset > 0 ? "-" : "+"
         }${(serverTimeOffset / 1000).toFixed(3)} seconds (±${(
           serverTimeOffsetRange / 2000

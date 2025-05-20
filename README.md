@@ -1,6 +1,6 @@
 # Real Clock
 
-A minimalistic accurate clock written in vanilla JS. Shows the exact real time even if your local time is incorrect. It fetches the correct time from [WorldTimeAPI](https://worldtimeapi.org/) and compensates for network latency.
+A minimalistic accurate clock written in vanilla JS. Shows the exact real time even if your local time is incorrect. It fetches the correct time from [TimeAPI](https://timeapi.io/) and compensates for network latency.
 
 ![screenshot](screenshot.png)
 
@@ -14,4 +14,4 @@ HTML + CSS + Vanilla JS, hosted on GitHub Pages:
 
 ## Alternative API server
 
-If you did not want to use [WorldTimeAPI](https://worldtimeapi.org/), an Express server is provided in the `_time-server/` dir.
+If you did not want to use [TimeAPI](https://timeapi.io/), an Express server is provided in the `_time-server/` dir.
