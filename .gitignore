@@ -25,3 +25,5 @@ dist-ssr
 
 time-server/node_modules
 _time-server/node_modules
+_time-server/.env
+_time-server/.env.local

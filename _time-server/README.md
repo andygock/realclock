@@ -6,10 +6,22 @@ You '''do not''' need to use this. It's only for users who do not want to use th
 
 ## Installation
 
-    npm install
-    npm start
+### CORS
 
-This will start the server on port 3000 by default. You can change the port by setting the `PORT` environment variable before starting the server.
+Create a `.env` file in the `_time-server/` directory with allowed CORS origins, for example:
+
+    ALLOWED_ORIGINS=http://127.0.0.1:5500,http://time.gock.net,https://time.gock.net
+
+These are the domains that will be allowed to access the time server. You can add or remove domains as needed.
+
+### Install
+
+I use [pnpm](https://pnpm.io/) as my package manager. You can also use npm or yarn instead.
+
+    pnpm install
+    node app.js
+
+This will start the server on port `3000` by default. You can change the port by setting the `PORT` environment variable before starting the server.
 
 ## Usage
 
