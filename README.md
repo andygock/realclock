@@ -10,7 +10,7 @@ The color changes at each multiple of 5 seconds to assist in synchronizing a phy
 
 ## Install
 
-I use [pnpm](https://pnpm.io/) as my package manager. You can also use npm or yarn instead.
+I use [pnpm](https://pnpm.io/) as my package manager. You can also use npm or yarn instead if you prefer.
 
     pnpm install
     node app.js
