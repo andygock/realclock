@@ -11,7 +11,7 @@ const app = express();
 // Global rate limiter middleware
 const globalLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 minute
-  max: 1000, // Allow 1000 requests per minute globally
+  max: 500, // Allow 500 requests per minute globally
   message: {
     error: "Too Many Requests",
     message:
@@ -22,7 +22,7 @@ const globalLimiter = rateLimit({
 // Per-IP rate limiter middleware
 const perIpLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 minute
-  max: 100, // Allow 100 requests per minute per IP
+  max: 50, // Allow 50 requests per minute per IP
   message: {
     error: "Too Many Requests",
     message: "You have exceeded the request limit. Please try again later.",

@@ -6,9 +6,7 @@ A minimalistic accurate clock. Shows the exact real time even if your local time
 
 The color changes at each multiple of 5 seconds to assist in synchronizing a physical watch or clock.
 
-Live demo:
-
-<https://time.gock.net/>
+[Live Demo](https://time.gock.net/)
 
 ## Install
 
@@ -45,7 +43,14 @@ Example response:
 
 ## Rate limiting
 
-This server uses the express-rate-limit middleware to rate-limit requests. Each IP address is limited to 30 requests per minute. If a client exceeds this limit, the server will respond with a 429 Too Many Requests status code.
+This server uses the express-rate-limit middleware to rate-limit requests.
+
+- Global Limit: The server allows up to 500 requests per minute across all clients.
+- Per-IP Limit: Each IP address is limited to 50 requests per minute.
+
+If a client exceeds these limits, the server will respond with a `429 Too Many Requests` status code.
+
+This can be adjusted in `app.js` by changing the values in the `globalLimiter` and `perIpLimiter` configuration.
 
 ## Using PM2
 
@@ -61,5 +66,3 @@ And to stop or remove it:
 ## License
 
 This project is licensed under the MIT License. See the LICENSE file for details.
-
-You can copy the above text into your own `README.md` file and modify it to fit the specifics of your project.
