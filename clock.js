@@ -1,13 +1,13 @@
 (() => {
   //
   // for development, if host is localhost or 127.0.0.1, use local time server http://localhost:3000/
-  // otherwise use internet facing https://time.gock.net:3007/
+  // otherwise use internet facing https://time-api.gock.net/
   //
   const serverUrl =
     window.location.hostname === "localhost" ||
     window.location.hostname === "127.0.0.1"
       ? "http://localhost:3007"
-      : "https://time.gock.net:3007/";
+      : "https://time-api.gock.net/";
 
   // calculate the offset of API server time compared with local time, in milliseconds
   // compensates for network latency, assume equal round trip time in each direction

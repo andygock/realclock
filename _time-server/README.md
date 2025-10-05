@@ -32,9 +32,9 @@ The server has one endpoint at the root path (`/`) that returns a JSON object wi
 
 You can make requests to the server using your web browser or a tool like `curl`.
 
-Example request on port 3000:
+Example request on port 3007:
 
-    curl http://localhost:3000/
+    curl http://localhost:3007/
 
 Example response:
 
@@ -55,14 +55,14 @@ This server uses the express-rate-limit middleware to rate-limit requests. Each 
 
 ## Using PM2
 
-If using PM2, you can use something to star the server on port 3030 and name it `datetime-server`:
+If using PM2, you can use something to star the server on port `3007` and name it `time-server`:
 
-    PORT=3030 pm2 start ./app.js --name "datetime-server"
+    PORT=3007 pm2 start ./app.js --name "time-server"
 
 And to stop or remove it
 
-    pm2 stop datetime-server
-    pm2 delete datetime-server
+    pm2 stop time-server
+    pm2 delete time-server
 
 ## License
 
