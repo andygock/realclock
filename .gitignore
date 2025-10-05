@@ -23,7 +23,5 @@ dist-ssr
 *.sln
 *.sw?
 
-time-server/node_modules
-_time-server/node_modules
-_time-server/.env
-_time-server/.env.local
+.env
+.env.local

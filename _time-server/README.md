@@ -1,8 +1,6 @@
 # Time server
 
-This is a simple Node Express app that returns the current time in milliseconds past Unix epoch and a datetime string in UTC format with milliseconds included. It is also rate-limited to 30 requests per minute.
-
-You '''do not''' need to use this. It's only for users who do not want to use the WorldTimeAPI server.
+This is a Node.js Express app that serves a static clock page and provides an API to fetch the current time. The static files are served from the `realclock` directory, and the API is available at `/api/time`.
 
 ## Installation
 
@@ -21,33 +19,37 @@ I use [pnpm](https://pnpm.io/) as my package manager. You can also use npm or ya
     pnpm install
     node app.js
 
-This will start the server on port `3000` by default. You can change the port by setting the `PORT` environment variable before starting the server.
+This will start the server on port `3007` by default. You can change the port by setting the `PORT` environment variable before starting the server.
 
 ## Usage
 
-The server has one endpoint at the root path (`/`) that returns a JSON object with two properties: `milliseconds` and `datetime`.
+### Static Files
+
+The server serves the static clock page from the `realclock` directory. You can access it by navigating to:
+
+    http://localhost:3007/
+
+### API Endpoint
+
+The server provides an API endpoint at `/api/time` that returns a JSON object with two properties: `milliseconds` and `datetime`.
 
 - `milliseconds` represents the current time in milliseconds past Unix epoch.
 - `datetime` represents the current date and time in UTC format with milliseconds included.
 
-You can make requests to the server using your web browser or a tool like `curl`.
+Example request:
 
-Example request on port 3007:
-
-    curl http://localhost:3007/
+    curl http://localhost:3007/api/time
 
 Example response:
 
-```json
-{
-  "milliseconds": 1648594225793,
-  "datetime": "2023-03-29T22:50:25.793Z"
-}
-```
+    {
+      "milliseconds": 1648594225793,
+      "datetime": "2023-03-29T22:50:25.793Z"
+    }
 
 ## Configuring clock app
 
-Edit variable `serverUrl` in `clock.js` to use this server.
+Edit the variable `serverUrl` in `clock.js` to use this server.
 
 ## Rate limiting
 
@@ -55,11 +57,11 @@ This server uses the express-rate-limit middleware to rate-limit requests. Each 
 
 ## Using PM2
 
-If using PM2, you can use something to star the server on port `3007` and name it `time-server`:
+If using PM2, you can use the following to start the server on port `3007` and name it `time-server`:
 
     PORT=3007 pm2 start ./app.js --name "time-server"
 
-And to stop or remove it
+And to stop or remove it:
 
     pm2 stop time-server
     pm2 delete time-server

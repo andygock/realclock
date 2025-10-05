@@ -2,6 +2,7 @@ require("dotenv").config();
 const express = require("express");
 const rateLimit = require("express-rate-limit");
 const cors = require("cors");
+const path = require("path");
 
 const app = express();
 
@@ -52,8 +53,12 @@ app.use((err, req, res, next) => {
   }
 });
 
+// Serve static files from the realclock directory
+const staticPath = path.join(__dirname, "./public");
+app.use(express.static(staticPath));
+
 // Endpoint to return current milliseconds past Unix epoch and datetime in UTC with milliseconds
-app.get("/", (req, res) => {
+app.get("/api/time", (req, res) => {
   const now = new Date();
   const milliseconds = now.getTime();
   const datetime = now.toISOString();
