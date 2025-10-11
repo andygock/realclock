@@ -1,6 +1,6 @@
 # Real Clock
 
-A minimalistic accurate clock. Shows the exact real time even if your local time is incorrect. It fetches the correct time from the web server server and compensates for network latency.
+A minimalistic accurate clock. Shows the exact real time even if your local time is incorrect. It fetches the correct time from the web server and compensates for network latency.
 
 ![screenshot](./screenshot.png)
 
@@ -65,7 +65,7 @@ And to stop or remove it:
 
 ## Keep server time accurate
 
-On Ubuntu 22.04, you can use `chronyd` to keep the server time accurate. Install it with:
+On Debian and Ubuntu, you can use `chronyd` to keep the server time accurate. Install it with:
 
     apt install chrony
 
