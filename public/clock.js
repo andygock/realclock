@@ -181,12 +181,13 @@
       serverTimeOffsetRange = range;
 
       // update these stats on page, delay by 1.5s to allow the clock to update first
+      // +ve serverTimeOffset means local clock is running behind server clock
       setTimeout(() => {
-        const statsHTML = `<p>Your clock is ${getTimeOffsetDescription(
+        const statsHTML = `<p>Your clock is <strong>${getTimeOffsetDescription(
           serverTimeOffset
-        )}. The difference from our server time is ${
+        )}</strong>. The difference from our server time is ${
           serverTimeOffset > 0 ? "-" : "+"
-        }${(serverTimeOffset / 1000).toFixed(3)} seconds (±${(
+        }${(Math.abs(serverTimeOffset) / 1000).toFixed(3)} seconds (±${(
           serverTimeOffsetRange / 2000
         ).toFixed(3)} seconds)</p>`;
         document.getElementById("stats").innerHTML = statsHTML;
