@@ -63,6 +63,29 @@ And to stop or remove it:
     pm2 stop realclock
     pm2 delete realclock
 
+## Keep server time accurate
+
+On Ubuntu 22.04, you can use `chronyd` to keep the server time accurate. Install it with:
+
+    apt install chrony
+
+Then start and enable it to run on boot. The system may already have it enabled after install.
+
+    systemctl start chronyd
+    systemctl enable chronyd
+
+Force a sync with:
+
+    chronyc -a makestep
+
+You can check the status of `chronyd` with:
+
+    chronyc tracking
+
+Add regular sync to crontab, add to `/etc/crontab`:
+
+    */10 * * * * root chronyc -a makestep
+
 ## License
 
 This project is licensed under the MIT License. See the LICENSE file for details.
