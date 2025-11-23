@@ -155,6 +155,29 @@
     }
   };
 
+  // update the progress bar
+  const updateBar = (time) => {
+    const seconds = time.getSeconds();
+    const milliseconds = time.getMilliseconds();
+    const totalSeconds = seconds + milliseconds / 1000;
+    const phase = Math.floor(totalSeconds / 5) % 2;
+    const progressInPhase = totalSeconds % 5;
+    const widthPercent = (progressInPhase / 5) * 100;
+
+    const bar = document.getElementById("progress-bar");
+    const fill = document.getElementById("progress-fill");
+
+    if (phase === 0) {
+      bar.style.backgroundColor = "white";
+      fill.style.backgroundColor = "black";
+    } else {
+      bar.style.backgroundColor = "black";
+      fill.style.backgroundColor = "white";
+    }
+
+    fill.style.width = widthPercent + "%";
+  };
+
   const main = async () => {
     try {
       let currentTime = new Date();
@@ -217,6 +240,15 @@
           updateClock(synchronizedTime, { highlight, dim: false });
         }, remainingMilliseconds);
       }, 1000);
+
+      // update the progress bar using requestAnimationFrame for very smooth animation
+      const updateBarLoop = () => {
+        const now = Date.now();
+        const syncedNow = new Date(now + serverTimeOffset);
+        updateBar(syncedNow);
+        requestAnimationFrame(updateBarLoop);
+      };
+      updateBarLoop();
     } catch (error) {
       console.error(error);
 
