@@ -63,6 +63,17 @@ footer {
   right: 16px;
 }
 
+#analog-clock-panel {
+  margin-top: 1.5rem;
+  display: flex;
+  justify-content: center;
+}
+
+analog-clock {
+  display: inline-block;
+  max-width: 90vw;
+}
+
 .highlight {
   color: darkred;
 }

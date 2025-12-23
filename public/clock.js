@@ -126,6 +126,18 @@
     document.getElementById("date").style.fontSize = `${newFontSize * 0.15}px`;
   };
 
+  const analogClockEl = document.getElementById("analog-clock");
+
+  const syncAnalogClockToOffset = (offsetMs) => {
+    if (!analogClockEl || typeof analogClockEl.setEpochMs !== "function")
+      return;
+    const correctedEpoch = Date.now() + offsetMs;
+    analogClockEl.setEpochMs(correctedEpoch);
+    if (typeof analogClockEl.resume === "function") {
+      analogClockEl.resume();
+    }
+  };
+
   // update clock in DOM
   const updateClock = (time, opts) => {
     const { highlight, dim } = opts;
@@ -203,6 +215,8 @@
       serverTimeOffset = offset;
       serverTimeOffsetRange = range;
 
+      syncAnalogClockToOffset(serverTimeOffset);
+
       // update these stats on page, delay by 1.5s to allow the clock to update first
       // +ve serverTimeOffset means local clock is running behind server clock
       setTimeout(() => {
@@ -254,6 +268,13 @@
 
       // display error to user
       document.getElementById("stats").innerHTML = `<p>Error: ${error}</p>`;
+      if (analogClockEl) {
+        if (typeof analogClockEl.syncToSystemTime === "function") {
+          analogClockEl.syncToSystemTime();
+        } else if (typeof analogClockEl.resume === "function") {
+          analogClockEl.resume();
+        }
+      }
     }
   }; // main
 
