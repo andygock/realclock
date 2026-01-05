@@ -39,8 +39,10 @@
       const offset = await getServerTimeOffset();
       serverTimeOffsets.push(offset);
 
-      // delay for (100ms) before the next request
-      await new Promise((resolve) => setTimeout(resolve, delayPerRequest));
+      // delay for 50ms before the next request
+      if (i < numberOfRequests - 1) {
+        await new Promise((resolve) => setTimeout(resolve, delayPerRequest));
+      }
     }
 
     // console.log('raw time offsets', serverTimeOffsets);
@@ -204,34 +206,16 @@
       // set font size on resizing of window
       window.addEventListener("resize", resizeFont);
 
-      // initial update of clcok is not synchronized
-      updateClock(synchronizedTime, { highlight: false, dim: true });
-      document.getElementById("stats").innerHTML = "<p>Synchronizing...</p>";
+      // Start analog clock with local time immediately
+      syncAnalogClockToOffset(0);
 
-      // calculate how far out local clock is by fetching real time from a server
-      // this will make 5 requests and return the average and min/max range
-      const { average: offset, range } = await getServerTimeOffsetAverage();
+      // initial update of clock with local time, not dimmed
+      updateClock(synchronizedTime, { highlight: false, dim: false });
+      document.getElementById("stats").innerHTML =
+        "<p>Fetching accurate time...</p>";
 
-      serverTimeOffset = offset;
-      serverTimeOffsetRange = range;
-
-      syncAnalogClockToOffset(serverTimeOffset);
-
-      // update these stats on page, delay by 1.5s to allow the clock to update first
-      // +ve serverTimeOffset means local clock is running behind server clock
-      setTimeout(() => {
-        const statsHTML = `<p>Your clock is <strong>${getTimeOffsetDescription(
-          serverTimeOffset
-        )}</strong>. The difference from our server time is ${
-          serverTimeOffset > 0 ? "-" : "+"
-        }${(Math.abs(serverTimeOffset) / 1000).toFixed(3)} seconds (±${(
-          serverTimeOffsetRange / 2000
-        ).toFixed(3)} seconds)</p>`;
-        document.getElementById("stats").innerHTML = statsHTML;
-      }, 1500);
-
-      // update the clock every second
-      setInterval(() => {
+      // update the clock every second with local time initially
+      const clockInterval = setInterval(() => {
         const now = new Date();
         currentTime = now;
 
@@ -263,6 +247,29 @@
         requestAnimationFrame(updateBarLoop);
       };
       updateBarLoop();
+
+      // calculate how far out local clock is by fetching real time from a server
+      // this will make 5 requests and return the average and min/max range
+      const { average: offset, range } = await getServerTimeOffsetAverage();
+
+      serverTimeOffset = offset;
+      serverTimeOffsetRange = range;
+
+      // Sync analog clock to corrected time
+      syncAnalogClockToOffset(serverTimeOffset);
+
+      // update these stats on page, delay by 1.5s to allow the clock to update first
+      // +ve serverTimeOffset means local clock is running behind server clock
+      setTimeout(() => {
+        const statsHTML = `<p>Your clock is <strong>${getTimeOffsetDescription(
+          serverTimeOffset
+        )}</strong>. The difference from our server time is ${
+          serverTimeOffset > 0 ? "-" : "+"
+        }${(Math.abs(serverTimeOffset) / 1000).toFixed(3)} seconds (±${(
+          serverTimeOffsetRange / 2000
+        ).toFixed(3)} seconds)</p>`;
+        document.getElementById("stats").innerHTML = statsHTML;
+      }, 1500);
     } catch (error) {
       console.error(error);
 
