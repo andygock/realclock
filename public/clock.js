@@ -140,17 +140,24 @@
     }
   };
 
+  const setStatsText = (message) => {
+    const stats = document.getElementById("stats");
+    const p = document.createElement("p");
+    p.textContent = message;
+    stats.replaceChildren(p);
+  };
+
   // update clock in DOM
   const updateClock = (time, opts) => {
     const { highlight, dim } = opts;
 
     // update the time in the DOM
     const clock = document.getElementById("clock");
-    clock.innerHTML = formatTime(time);
+    clock.textContent = formatTime(time);
 
     // update the date in the DOM
     const date = document.getElementById("date");
-    date.innerHTML = formatDate(time);
+    date.textContent = formatDate(time);
 
     // highlight the text if the seconds are a multiple of 5
     if (highlight) {
@@ -211,8 +218,7 @@
 
       // initial update of clock with local time, not dimmed
       updateClock(synchronizedTime, { highlight: false, dim: false });
-      document.getElementById("stats").innerHTML =
-        "<p>Fetching accurate time...</p>";
+      setStatsText("Fetching accurate time...");
 
       // update the clock every second with local time initially
       const clockInterval = setInterval(() => {
@@ -261,20 +267,27 @@
       // update these stats on page, delay by 1.5s to allow the clock to update first
       // +ve serverTimeOffset means local clock is running behind server clock
       setTimeout(() => {
-        const statsHTML = `<p>Your clock is <strong>${getTimeOffsetDescription(
-          serverTimeOffset
-        )}</strong>. The difference from our server time is ${
-          serverTimeOffset > 0 ? "-" : "+"
-        }${(Math.abs(serverTimeOffset) / 1000).toFixed(3)} seconds (±${(
-          serverTimeOffsetRange / 2000
-        ).toFixed(3)} seconds)</p>`;
-        document.getElementById("stats").innerHTML = statsHTML;
+        const stats = document.getElementById("stats");
+        const p = document.createElement("p");
+        const strong = document.createElement("strong");
+
+        strong.textContent = getTimeOffsetDescription(serverTimeOffset);
+        p.append(
+          "Your clock is ",
+          strong,
+          `. The difference from our server time is ${
+            serverTimeOffset > 0 ? "-" : "+"
+          }${(Math.abs(serverTimeOffset) / 1000).toFixed(3)} seconds (+/-${(
+            serverTimeOffsetRange / 2000
+          ).toFixed(3)} seconds)`
+        );
+        stats.replaceChildren(p);
       }, 1500);
     } catch (error) {
       console.error(error);
 
       // display error to user
-      document.getElementById("stats").innerHTML = `<p>Error: ${error}</p>`;
+      setStatsText(`Error: ${error}`);
       if (analogClockEl) {
         if (typeof analogClockEl.syncToSystemTime === "function") {
           analogClockEl.syncToSystemTime();

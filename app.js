@@ -8,10 +8,26 @@ const morgan = require("morgan");
 
 const app = express();
 
-// Global rate limiter middleware
-const globalLimiter = rateLimit({
+const parseTrustProxy = (value) => {
+  if (!value) return false;
+  if (/^\d+$/.test(value)) return Number(value);
+  if (value === "true") return true;
+  return value;
+};
+
+app.set("trust proxy", parseTrustProxy(process.env.TRUST_PROXY));
+
+// Use Helmet for security
+app.use(helmet());
+
+// Use Morgan for logging
+app.use(morgan("combined"));
+
+// Global API rate limiter middleware
+const apiGlobalLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 minute
-  max: 500, // Allow 500 requests per minute globally
+  max: 500, // Allow 500 requests per minute across all clients
+  keyGenerator: () => "global",
   message: {
     error: "Too Many Requests",
     message:
@@ -19,8 +35,8 @@ const globalLimiter = rateLimit({
   },
 });
 
-// Per-IP rate limiter middleware
-const perIpLimiter = rateLimit({
+// Per-IP API rate limiter middleware
+const apiPerIpLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 minute
   max: 50, // Allow 50 requests per minute per IP
   message: {
@@ -71,11 +87,11 @@ app.use((err, req, res, next) => {
 const staticPath = path.join(__dirname, "./public");
 app.use(express.static(staticPath));
 
-// Apply global rate limiter to all routes
-app.use(globalLimiter);
+// Apply API rate limiters only to API routes so static assets stay uncapped.
+app.use("/api", apiGlobalLimiter);
+app.use("/api", apiPerIpLimiter);
 
-// Apply per-IP rate limiter only to the /api/time endpoint
-app.get("/api/time", perIpLimiter, (req, res) => {
+app.get("/api/time", (req, res) => {
   const now = new Date();
   const milliseconds = now.getTime();
   const datetime = now.toISOString();
@@ -106,12 +122,6 @@ app.use((req, res) => {
     );
   }
 });
-
-// Use Helmet for security
-app.use(helmet());
-
-// Use Morgan for logging
-app.use(morgan("combined"));
 
 // Validate required environment variables
 if (!process.env.PORT) {
