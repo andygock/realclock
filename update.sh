@@ -53,7 +53,7 @@ fi
 
 # Restart pm2 process
 echo "Restarting pm2 process: $PROJECT_NAME"
-if ! pm2 restart $PROJECT_NAME; then
+if ! pm2 restart "$PROJECT_NAME"; then
     echo "Error: Failed to restart pm2 process $PROJECT_NAME"
     exit 1
 fi

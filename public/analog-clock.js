@@ -28,6 +28,22 @@
 
   const posMod = (a, n) => ((a % n) + n) % n;
 
+  // Keep declarative defaults separate from mutable component state. Attribute
+  // removal can then restore a known value instead of retaining stale state.
+  const DEFAULT_PROPS = Object.freeze({
+    size: 180,
+    faceColor: "#0f0f10",
+    rimColor: "#2a2a2d",
+    markerColor: "#d6d6d6",
+    minuteMarkerColor: "",
+    hourHandColor: "#ffffff",
+    minuteHandColor: "#ffffff",
+    secondHandColor: "#ff3b30",
+    centreCapColor: "#ffffff",
+    tickOffsetMs: 0,
+    paused: false,
+  });
+
   class AnalogClock extends HTMLElement {
     static get observedAttributes() {
       return [
@@ -76,17 +92,7 @@
       };
 
       this._props = {
-        size: 180,
-        faceColor: "#0f0f10",
-        rimColor: "#2a2a2d",
-        markerColor: "#d6d6d6",
-        minuteMarkerColor: "",
-        hourHandColor: "#ffffff",
-        minuteHandColor: "#ffffff",
-        secondHandColor: "#ff3b30",
-        centreCapColor: "#ffffff",
-        tickOffsetMs: 0,
-        paused: false,
+        ...DEFAULT_PROPS,
 
         computed: {
           rimWidth: 0,
@@ -135,7 +141,9 @@
     attributeChangedCallback(name) {
       if (name === "size") this._pendingRebuild = true;
       queueMicrotask(() => {
-        this._readAllAttributes();
+        // Only update the changed attribute. This preserves values set through
+        // pause(), setEpochMs(), and the other imperative APIs.
+        this._readAttribute(name);
         if (!this.shadowRoot) return;
 
         if (this._pendingRebuild) {
@@ -209,41 +217,66 @@
     }
 
     _readAllAttributes() {
-      const a = (name) => this.getAttribute(name);
-
-      this._props.size = clamp(toNumber(a("size"), this._props.size), 60, 2000);
-
-      this._props.faceColor = a("face-color") ?? this._props.faceColor;
-      this._props.rimColor = a("rim-color") ?? this._props.rimColor;
-      this._props.markerColor = a("marker-color") ?? this._props.markerColor;
-      this._props.minuteMarkerColor =
-        a("minute-marker-color") ?? this._props.minuteMarkerColor;
-
-      this._props.hourHandColor =
-        a("hour-hand-color") ?? this._props.hourHandColor;
-      this._props.minuteHandColor =
-        a("minute-hand-color") ?? this._props.minuteHandColor;
-      this._props.secondHandColor =
-        a("second-hand-color") ?? this._props.secondHandColor;
-      this._props.centreCapColor =
-        a("centre-cap-color") ?? this._props.centreCapColor;
-
-      if (hasAttr(this, "timezone-offset-minutes")) {
-        const tz = toNumber(
-          a("timezone-offset-minutes"),
-          this._time.tzOffsetMin
-        );
-        if (Number.isFinite(tz))
-          this._time.tzOffsetMin = clamp(tz, -14 * 60, 14 * 60);
+      for (const name of AnalogClock.observedAttributes) {
+        this._readAttribute(name);
       }
+    }
 
-      this._props.tickOffsetMs = clamp(
-        toNumber(a("tick-offset-ms"), this._props.tickOffsetMs),
-        -600000,
-        600000
-      );
+    _readAttribute(name) {
+      const value = this.getAttribute(name);
 
-      this._props.paused = toBool(a("paused"), this._props.paused);
+      switch (name) {
+        case "size":
+          this._props.size = clamp(
+            toNumber(value, DEFAULT_PROPS.size),
+            60,
+            2000
+          );
+          break;
+        case "face-color":
+          this._props.faceColor = value ?? DEFAULT_PROPS.faceColor;
+          break;
+        case "rim-color":
+          this._props.rimColor = value ?? DEFAULT_PROPS.rimColor;
+          break;
+        case "marker-color":
+          this._props.markerColor = value ?? DEFAULT_PROPS.markerColor;
+          break;
+        case "minute-marker-color":
+          this._props.minuteMarkerColor =
+            value ?? DEFAULT_PROPS.minuteMarkerColor;
+          break;
+        case "hour-hand-color":
+          this._props.hourHandColor = value ?? DEFAULT_PROPS.hourHandColor;
+          break;
+        case "minute-hand-color":
+          this._props.minuteHandColor = value ?? DEFAULT_PROPS.minuteHandColor;
+          break;
+        case "second-hand-color":
+          this._props.secondHandColor = value ?? DEFAULT_PROPS.secondHandColor;
+          break;
+        case "centre-cap-color":
+          this._props.centreCapColor = value ?? DEFAULT_PROPS.centreCapColor;
+          break;
+        case "timezone-offset-minutes":
+          this._time.tzOffsetMin = hasAttr(this, name)
+            ? clamp(toNumber(value, 0), -14 * 60, 14 * 60)
+            : -new Date().getTimezoneOffset();
+          break;
+        case "tick-offset-ms":
+          this._props.tickOffsetMs = clamp(
+            toNumber(value, DEFAULT_PROPS.tickOffsetMs),
+            -600000,
+            600000
+          );
+          break;
+        case "paused":
+          this._props.paused = toBool(value, DEFAULT_PROPS.paused);
+          break;
+        default:
+          // Geometry attributes are read directly by _effective().
+          break;
+      }
     }
 
     _computeDefaults() {
@@ -625,7 +658,14 @@
       if (!this._anims.second || !this._anims.minute || !this._anims.hour)
         return;
 
-      const t = this._epochMsNow() + this._time.tzOffsetMin * 60000;
+      const epochMs = this._epochMsNow();
+
+      // Re-evaluate the browser's local offset so a long-open page follows DST.
+      // An explicit timezone attribute remains a fixed-offset override.
+      const timezoneOffsetMin = hasAttr(this, "timezone-offset-minutes")
+        ? this._time.tzOffsetMin
+        : -new Date(epochMs).getTimezoneOffset();
+      const t = epochMs + timezoneOffsetMin * 60000;
 
       // Phase within each period
       const secPhase = posMod(t, 60000);

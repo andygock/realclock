@@ -6,9 +6,23 @@
   // +ve offset means local clock is running behind server clock
   const getServerTimeOffset = async () => {
     const clientTimeStart = Date.now();
-    const response = await fetch(serverUrl, {
-      cache: "no-store",
-    });
+    const monotonicStart = performance.now();
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 5000);
+
+    let response;
+    try {
+      response = await fetch(serverUrl, {
+        cache: "no-store",
+        signal: controller.signal,
+      });
+    } finally {
+      clearTimeout(timeout);
+    }
+
+    if (!response.ok) {
+      throw new Error(`Time request failed with HTTP ${response.status}`);
+    }
 
     //
     // expect json response in this format, in UTC, from local server in _time-server
@@ -18,49 +32,63 @@
 
     const json = await response.json();
 
-    const clientTimeEnd = Date.now();
-    const roundTripTime = clientTimeEnd - clientTimeStart;
+    // performance.now() is monotonic, so a system-clock adjustment during the
+    // request cannot produce a negative or otherwise corrupt round-trip time.
+    const roundTripTime = performance.now() - monotonicStart;
 
     // Parse the server's datetime string into a Date object
     const serverTime = new Date(json.datetime);
     const serverUtc = serverTime.getTime();
 
+    if (!Number.isFinite(serverUtc)) {
+      throw new Error("Time response did not include a valid datetime");
+    }
+
     const timeOffset = serverUtc - (clientTimeStart + roundTripTime / 2);
-    return timeOffset;
+    return { offset: timeOffset, roundTripTime };
   };
 
-  // calculate the time offset of server, 5 times, then get an average
-  const getServerTimeOffsetAverage = async () => {
-    const serverTimeOffsets = [];
+  // Take several samples, discard the slowest requests, and use the median of
+  // the fastest three. This reduces bias from transient network queueing.
+  const getServerTimeOffsetEstimate = async () => {
+    const samples = [];
     const numberOfRequests = 5;
     const delayPerRequest = 100;
 
     for (let i = 0; i < numberOfRequests; i++) {
-      const offset = await getServerTimeOffset();
-      serverTimeOffsets.push(offset);
+      try {
+        const sample = await getServerTimeOffset();
+        if (
+          Number.isFinite(sample.offset) &&
+          Number.isFinite(sample.roundTripTime)
+        ) {
+          samples.push(sample);
+        }
+      } catch (error) {
+        console.warn("Time sync sample failed:", error);
+      }
 
-      // delay for 50ms before the next request
+      // Briefly separate requests so one short network stall affects fewer samples.
       if (i < numberOfRequests - 1) {
         await new Promise((resolve) => setTimeout(resolve, delayPerRequest));
       }
     }
 
-    // console.log('raw time offsets', serverTimeOffsets);
+    if (samples.length < 3) {
+      throw new Error("Could not collect enough valid time samples");
+    }
 
-    // optional: remove lowest and highest values
-    // serverTimeOffsets.sort((a, b) => a - b);
-    // serverTimeOffsets.pop();
-    // serverTimeOffsets.shift();
+    const fastestSamples = samples
+      .sort((a, b) => a.roundTripTime - b.roundTripTime)
+      .slice(0, 3);
+    const offsets = fastestSamples
+      .map((sample) => sample.offset)
+      .sort((a, b) => a - b);
 
-    // calculate the range from min to max of serverTimeOffsets
-    const range =
-      Math.max(...serverTimeOffsets) - Math.min(...serverTimeOffsets);
-
-    // calculate average time offset from remaining values
-    const average =
-      serverTimeOffsets.reduce((a, b) => a + b, 0) / serverTimeOffsets.length;
-
-    return { average, range };
+    return {
+      offset: offsets[Math.floor(offsets.length / 2)],
+      range: offsets[offsets.length - 1] - offsets[0],
+    };
   };
 
   // format the time as a string
@@ -110,7 +138,7 @@
 
     const pre = () => {
       if (error > 0.1 && error < 0.5) return "slightly";
-      if (error > 0.5) return "";
+      if (error >= 0.5) return "";
     };
 
     return `${pre()}${offset <= 0 ? " ahead" : " behind"}`;
@@ -206,6 +234,7 @@
       let remainingMilliseconds = 0;
       let serverTimeOffset = 0;
       let serverTimeOffsetRange = 0;
+      let syncPromise = null;
 
       // set font size on page load
       resizeFont();
@@ -231,17 +260,18 @@
         synchronizedTime = new Date(
           currentTime.getTime() + serverTimeOffset + 1000
         );
+        const displayTime = synchronizedTime;
 
         // Calculate the milliseconds remaining until the next second boundary
         remainingMilliseconds = 1000 - synchronizedTime.getMilliseconds();
 
         // calculate whether the second portion of synchronizedTime is a multiple of 5
         // used to change font color, to help set watches
-        let highlight = synchronizedTime.getSeconds() % 5 === 0;
+        let highlight = displayTime.getSeconds() % 5 === 0;
 
         // update the DOM every second, but delay until the next second boundary
         setTimeout(() => {
-          updateClock(synchronizedTime, { highlight, dim: false });
+          updateClock(displayTime, { highlight, dim: false });
         }, remainingMilliseconds);
       }, 1000);
 
@@ -254,15 +284,41 @@
       };
       updateBarLoop();
 
-      // calculate how far out local clock is by fetching real time from a server
-      // this will make 5 requests and return the average and min/max range
-      const { average: offset, range } = await getServerTimeOffsetAverage();
+      const synchronizeWithServer = () => {
+        // Reuse an in-flight synchronization so interval and visibility events
+        // cannot start overlapping groups of network requests.
+        if (syncPromise) return syncPromise;
 
-      serverTimeOffset = offset;
-      serverTimeOffsetRange = range;
+        syncPromise = getServerTimeOffsetEstimate()
+          .then(({ offset, range }) => {
+            serverTimeOffset = offset;
+            serverTimeOffsetRange = range;
+            syncAnalogClockToOffset(serverTimeOffset);
+          })
+          .finally(() => {
+            syncPromise = null;
+          });
 
-      // Sync analog clock to corrected time
-      syncAnalogClockToOffset(serverTimeOffset);
+        return syncPromise;
+      };
+
+      // Retry periodically so oscillator drift, sleep/resume, and manual system
+      // clock adjustments do not permanently invalidate the initial offset.
+      setInterval(() => {
+        synchronizeWithServer().catch((error) => {
+          console.warn("Background time synchronization failed:", error);
+        });
+      }, 5 * 60 * 1000);
+
+      document.addEventListener("visibilitychange", () => {
+        if (!document.hidden) {
+          synchronizeWithServer().catch((error) => {
+            console.warn("Resume time synchronization failed:", error);
+          });
+        }
+      });
+
+      await synchronizeWithServer();
 
       // update these stats on page, delay by 1.5s to allow the clock to update first
       // +ve serverTimeOffset means local clock is running behind server clock
@@ -287,7 +343,8 @@
       console.error(error);
 
       // display error to user
-      setStatsText(`Error: ${error}`);
+      const message = error instanceof Error ? error.message : String(error);
+      setStatsText(`Could not sync with server time: ${message}`);
       if (analogClockEl) {
         if (typeof analogClockEl.syncToSystemTime === "function") {
           analogClockEl.syncToSystemTime();

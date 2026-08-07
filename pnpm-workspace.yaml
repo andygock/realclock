@@ -1,0 +1,12 @@
+packages:
+  - "."
+
+overrides:
+  # express-rate-limit uses this at the IP trust boundary; do not resolve a
+  # version affected by the leading-zero or special-address bypass advisories.
+  ip-address: ">=10.3.1"
+  # Express accepts compatible body-parser 2.x releases; require the release
+  # that restores enforcement when an invalid request-size limit is supplied.
+  body-parser: ">=2.3.0"
+  path-to-regexp: ^8.4.0
+  qs: ^6.15.2

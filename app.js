@@ -3,16 +3,61 @@ const express = require("express");
 const rateLimit = require("express-rate-limit");
 const cors = require("cors");
 const path = require("path");
+const { isIP } = require("node:net");
 const helmet = require("helmet");
 const morgan = require("morgan");
 
 const app = express();
 
 const parseTrustProxy = (value) => {
-  if (!value) return false;
-  if (/^\d+$/.test(value)) return Number(value);
-  if (value === "true") return true;
-  return value;
+  const normalized = String(value ?? "")
+    .trim()
+    .toLowerCase();
+
+  if (!normalized || normalized === "false") return false;
+
+  // Trusting every proxy lets directly connected clients spoof X-Forwarded-For
+  // and evade per-IP rate limits. Require an exact hop count or known subnet.
+  if (normalized === "true") {
+    throw new Error(
+      "TRUST_PROXY=true is unsafe. Use a proxy hop count or explicit IP/CIDR."
+    );
+  }
+
+  if (/^\d+$/.test(normalized)) return Number(normalized);
+
+  const namedRanges = new Set(["loopback", "linklocal", "uniquelocal"]);
+  const proxies = normalized
+    .split(",")
+    .map((proxy) => proxy.trim())
+    .filter(Boolean);
+
+  const isValidProxy = (proxy) => {
+    if (namedRanges.has(proxy)) return true;
+
+    const [address, prefix, ...extra] = proxy.split("/");
+    if (extra.length > 0) return false;
+
+    const family = isIP(address);
+    if (!family) return false;
+    if (prefix === undefined) return true;
+
+    const prefixLength = Number(prefix);
+    const maxPrefixLength = family === 4 ? 32 : 128;
+    return (
+      /^\d+$/.test(prefix) &&
+      prefixLength >= 0 &&
+      prefixLength <= maxPrefixLength
+    );
+  };
+
+  if (proxies.length === 0 || !proxies.every(isValidProxy)) {
+    throw new Error(
+      "TRUST_PROXY must be a hop count or comma-separated IP/CIDR list."
+    );
+  }
+
+  return proxies;
 };
 
 app.set("trust proxy", parseTrustProxy(process.env.TRUST_PROXY));
@@ -45,28 +90,38 @@ const apiPerIpLimiter = rateLimit({
   },
 });
 
-// CORS middleware to allow only specific domains to access the time server
-const allowedOrigins = (process.env.ALLOWED_ORIGINS || "").split(",");
+// Normalize configuration so whitespace around comma-separated origins is safe.
+const allowedOrigins = new Set(
+  (process.env.ALLOWED_ORIGINS || "")
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean)
+);
 
-if (
-  allowedOrigins.length === 0 ||
-  (allowedOrigins.length === 1 && allowedOrigins[0] === "")
-) {
+if (allowedOrigins.size === 0) {
   console.warn(
     "Warning: No allowed origins specified for CORS. All origins will be blocked."
   );
 }
 
+// Serve static assets without applying API-specific CORS restrictions.
+const staticPath = path.join(__dirname, "./public");
+app.use(express.static(staticPath));
+
+// Rate limiting must run before CORS so rejected origins cannot bypass it.
+app.use("/api", apiGlobalLimiter);
+app.use("/api", apiPerIpLimiter);
+
 app.use(
+  "/api",
   cors({
     origin: function (origin, callback) {
       // Allow requests with no origin (like mobile apps, curl, etc.)
       if (!origin) return callback(null, true);
-      if (allowedOrigins.includes(origin)) {
+      if (allowedOrigins.has(origin)) {
         return callback(null, true);
-      } else {
-        return callback(null, false); // Let the error handler handle the response
       }
+      return callback(new Error("Not allowed by CORS"));
     },
   })
 );
@@ -83,18 +138,13 @@ app.use((err, req, res, next) => {
   }
 });
 
-// Serve static files from the realclock directory
-const staticPath = path.join(__dirname, "./public");
-app.use(express.static(staticPath));
-
-// Apply API rate limiters only to API routes so static assets stay uncapped.
-app.use("/api", apiGlobalLimiter);
-app.use("/api", apiPerIpLimiter);
-
 app.get("/api/time", (req, res) => {
   const now = new Date();
   const milliseconds = now.getTime();
   const datetime = now.toISOString();
+
+  // A cached timestamp is incorrect by definition, including behind a CDN.
+  res.set("Cache-Control", "no-store, no-cache, must-revalidate");
   res.json({ milliseconds, datetime });
 });
 
@@ -123,12 +173,6 @@ app.use((req, res) => {
   }
 });
 
-// Validate required environment variables
-if (!process.env.PORT) {
-  console.error("Error: PORT environment variable is not set.");
-  process.exit(1);
-}
-
 // Centralized error handler for unexpected errors
 app.use((err, req, res, next) => {
   console.error("Unexpected error:", err);
@@ -138,17 +182,38 @@ app.use((err, req, res, next) => {
   });
 });
 
-// Graceful shutdown
-process.on("SIGINT", () => {
-  console.log("Shutting down server...");
-  process.exit(0);
-});
-
-process.on("SIGTERM", () => {
-  console.log("Shutting down server...");
-  process.exit(0);
-});
-
 // Start the server
-const PORT = process.env.PORT || 3007;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+const PORT = Number(process.env.PORT || 3007);
+if (!Number.isInteger(PORT) || PORT < 1 || PORT > 65535) {
+  throw new Error("PORT must be an integer between 1 and 65535.");
+}
+
+const server = app.listen(PORT, () =>
+  console.log(`Server running on port ${PORT}`)
+);
+
+let shuttingDown = false;
+
+const shutdown = (signal) => {
+  if (shuttingDown) return;
+  shuttingDown = true;
+
+  console.log(`${signal} received; draining HTTP connections...`);
+
+  // Do not let a stuck keep-alive connection prevent process termination.
+  const forceExitTimer = setTimeout(() => {
+    console.error("Graceful shutdown timed out; forcing connections closed.");
+    server.closeAllConnections?.();
+    process.exit(1);
+  }, 10_000);
+  forceExitTimer.unref();
+
+  server.close((error) => {
+    clearTimeout(forceExitTimer);
+    if (error) console.error("HTTP server shutdown failed:", error);
+    process.exit(error ? 1 : 0);
+  });
+};
+
+process.on("SIGINT", () => shutdown("SIGINT"));
+process.on("SIGTERM", () => shutdown("SIGTERM"));
